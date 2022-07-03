@@ -35,12 +35,9 @@ impl Raytracer {
         ray: &Ray,
         scene: &Vec<Rc<dyn Geometry>>,
         light: Point3D,
-        depth: u32,
+        reflections: u32,
         ignore: Option<Rc<dyn Geometry>>,
     ) -> Color {
-        // if depth < 0 {
-        //     return Color::new(0, 0, 0, 0);
-        // }
         let mut closest_hit: Option<Rayhit> = None;
         let mut closest_dist = f32::INFINITY;
         for object in scene.iter() {
@@ -72,7 +69,7 @@ impl Raytracer {
                         let dist_to_light = to_light.norm();
                         let to_light = to_light * (1.0 / dist_to_light);
 
-                        let min = 0.0;
+                        let min = 0.2;
 
                         let mut brightness = hit.normal * to_light;
                         if brightness < min {
@@ -95,6 +92,7 @@ impl Raytracer {
                                 }
                                 match Rc::clone(object).intersect(&ray_to_light, dist_to_light) {
                                     Some(shadow_hit) => {
+                                        // Some light passes through transparent objects
                                         light_amount *= 1.0 - shadow_hit.material.color.a;
                                         if light_amount <= min_shade {
                                             light_amount = min_shade;
@@ -120,10 +118,30 @@ impl Raytracer {
                         },
                         scene,
                         light,
-                        depth - 1,
-                        Some(hit.obj)
+                        reflections,
+                        Some(Rc::clone(&hit.obj)),
                     );
                     color = color.overlay(passthrough_color);
+                }
+                // Do reflections
+                if hit.material.reflectivity > 0.0 {
+                    let reflect = ray.direction - hit.normal * (ray.direction * hit.normal) * 2.0;
+                    if reflections > 0 {
+                        // println!("Reflecting");
+                        color = Raytracer::trace(
+                            &Ray {
+                                direction: reflect,
+                                origin: hit.pos,
+                            },
+                            scene,
+                            light,
+                            reflections - 1,
+                            Some(Rc::clone(&hit.obj)),
+                        )
+                        .average(color, hit.material.reflectivity)
+                    } else {
+                        println!("Reflection limit reached");
+                    };
                 }
                 color
             }
@@ -131,7 +149,13 @@ impl Raytracer {
         }
     }
 
-    pub fn render(cam: &Camera, scene: &Vec<Rc<dyn Geometry>>, light: Point3D, img: &mut Image) {
+    pub fn render(
+        cam: &Camera,
+        scene: &Vec<Rc<dyn Geometry>>,
+        light: Point3D,
+        img: &mut Image,
+        reflections: u32,
+    ) {
         let right = cam.look.cross(&cam.up).scale(-1.0).normalized();
         let up = right.cross(&cam.look).scale(-1.0).normalized(); // Ensure the up vector is orthagonal to our look direction
 
@@ -171,7 +195,11 @@ impl Raytracer {
                     direction: ray_direction.normalized(),
                     origin: cam.position,
                 };
-                img.set_pixelu32(x, y, Raytracer::trace(&ray, scene, light, 1, None));
+                img.set_pixelu32(
+                    x,
+                    y,
+                    Raytracer::trace(&ray, scene, light, reflections, None),
+                );
                 ray_direction = ray_direction + step_x;
             }
             row_start = row_start + step_y;

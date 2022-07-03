@@ -26,12 +26,7 @@ fn main() {
     scene.push(Rc::new(Sphere {
         origin: Point3D::new([0.0, 0.0, 16.0]),
         radius: 5.3547,
-        material: Material::new(Color::new(0, 0, 255, 255), 0.0, Shading::DIFFUSE, None),
-    }));
-    scene.push(Rc::new(Sphere {
-        origin: Point3D::new([2.0, 0.0, 0.0]),
-        radius: 1.0,
-        material: Material::new(Color::new(0, 0, 255, 255), 0.0, Shading::DIFFUSE, None),
+        material: Material::new(Color::new(0, 0, 255, 255), 0.2, Shading::DIFFUSE, None),
     }));
     scene.push(Rc::new(Sphere {
         origin: Point3D::new([0.0, 0.0, 16.0]),
@@ -44,6 +39,11 @@ fn main() {
         material: Material::new(Color::new(255, 0, 0, 255), 0.0, Shading::DIFFUSE, None),
     }));
     scene.push(Rc::new(Sphere {
+        origin: Point3D::new([-10.0, 0.0, 16.0]),
+        radius: 2.0,
+        material: Material::new(Color::new(0, 0, 0, 255), 1.0, Shading::DIFFUSE, None),
+    }));
+    scene.push(Rc::new(Sphere {
         origin: Point3D::zero(),
         radius: f32::INFINITY,
         material: Material::new(Color::new(0, 0, 0, 255), 0.0, Shading::FLAT, None),
@@ -51,7 +51,7 @@ fn main() {
 
     let light = Point3D::new([2.0, 2.0, -8.0]);
 
-    Raytracer::render(&camera, &scene, light, &mut image);
+    Raytracer::render(&camera, &scene, light, &mut image, 5);
 
     image.save(&"output.png".to_owned());
 }

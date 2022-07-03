@@ -99,8 +99,6 @@ impl Geometry for Sphere {
         println!("Radius {}", self.radius);
         */
 
-        let zero = 0.0;
-
         if discriminant <= 0.0 {
             return None;
         }
@@ -112,9 +110,9 @@ impl Geometry for Sphere {
         //println!("Disc: {}", discriminant);
         //println!("t1: {}, t2: {}", t1, t2);
 
-        return if t1 < zero && t2 < zero {
+        return if t1 < 0.0 && t2 < 0.0 {
             None
-        } else if t1 < closest_dist && (t2 < zero || t1 < t2) {
+        } else if t1 < closest_dist && (t2 < 0.0 || t1 < t2) {
             let hit_pos = ray.at(t1);
             Some(Rayhit::new(
                 t1,
@@ -123,7 +121,7 @@ impl Geometry for Sphere {
                 self.material,
                 self,
             ))
-        } else if t2 < closest_dist && (t1 < zero || t2 < t1) {
+        } else if t2 < closest_dist && (t1 < 0.0 || t2 < t1) {
             let hit_pos = ray.at(t2);
             Some(Rayhit::new(
                 t2,
