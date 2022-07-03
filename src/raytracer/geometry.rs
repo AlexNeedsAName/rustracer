@@ -2,6 +2,7 @@ extern crate image;
 extern crate matrix;
 
 use std::fmt;
+use std::rc::Rc;
 
 pub mod material;
 
@@ -13,19 +14,21 @@ use matrix::vector::Vector3D;
 // x is east/west, y is up/down, z is north/south
 
 pub struct Rayhit {
-    pub distance: f32,
-    pub hit_position: Point3D,
+    pub dist: f32,
+    pub pos: Point3D,
     pub normal: Vector3D,
     pub material: Material,
+    pub obj: Rc<dyn Geometry>,
 }
 
 impl Rayhit {
-    pub fn new(dist: f32, hit_position: Point3D, normal: Vector3D, material: Material) -> Rayhit {
+    pub fn new(dist: f32, pos: Point3D, normal: Vector3D, material: Material, obj: Rc<dyn Geometry>) -> Rayhit {
         return Rayhit {
-            distance: dist,
-            hit_position: hit_position,
+            dist: dist,
+            pos: pos,
             normal: normal,
             material: material,
+            obj: obj,
         };
     }
 }
@@ -48,10 +51,11 @@ impl fmt::Display for Ray {
 }
 
 pub trait Geometry {
-    fn intersect(&self, ray: &Ray, closest_dist: f32) -> Option<Rayhit>;
+    fn intersect(self: Rc<Self>, ray: &Ray, closest_dist: f32) -> Option<Rayhit>;
     fn normal(&self, position: Point3D) -> Vector3D;
 }
 
+#[derive(Copy, Clone)]
 pub struct Sphere {
     pub origin: Point3D,
     pub radius: f32,
@@ -59,18 +63,19 @@ pub struct Sphere {
 }
 
 impl Geometry for Sphere {
-    fn intersect(&self, ray: &Ray, closest_dist: f32) -> Option<Rayhit> {
+    fn intersect(self: Rc<Self>, ray: &Ray, closest_dist: f32) -> Option<Rayhit> {
         // We trivially hit an infinite sphere infinitely far away
         if f32::is_infinite(self.radius) {
-            if !f32::is_infinite(closest_dist) {
-                return None;
+            return if f32::is_finite(closest_dist) {
+                None
             } else {
-                return Some(Rayhit::new(
+                Some(Rayhit::new(
                     f32::INFINITY,
-                    Point3D::zero(),
-                    ray.direction.clone(),
+                    ray.direction * f32::INFINITY,
+                    -ray.direction,
                     self.material,
-                ));
+                    self
+                ))
             }
         }
 
@@ -88,6 +93,8 @@ impl Geometry for Sphere {
         println!("Radius {}", self.radius);
         */
 
+        let zero = 0.0;
+
         if discriminant <= 0.0 {
             return None;
         }
@@ -99,30 +106,32 @@ impl Geometry for Sphere {
         //println!("Disc: {}", discriminant);
         //println!("t1: {}, t2: {}", t1, t2);
 
-        if t1 < 0.0 && t2 < 0.0 {
-            return None;
-        } else if t1 < closest_dist && (t2 < 0.0 || t1 < t2) {
+        return if t1 < zero && t2 < zero {
+            None
+        } else if t1 < closest_dist && (t2 < zero || t1 < t2) {
             let hit_pos = ray.at(t1);
-            return Some(Rayhit::new(
+            Some(Rayhit::new(
                 t1,
                 hit_pos,
                 self.normal(hit_pos),
                 self.material,
-            ));
-        } else if t2 < closest_dist && (t1 < 0.0 || t2 < t1) {
+                self
+            ))
+        } else if t2 < closest_dist && (t1 < zero || t2 < t1) {
             let hit_pos = ray.at(t2);
-            return Some(Rayhit::new(
+            Some(Rayhit::new(
                 t2,
                 hit_pos,
                 self.normal(hit_pos),
                 self.material,
-            ));
+                self
+            ))
         } else {
-            return None;
+            None
         }
     }
 
-    fn normal(&self, _position: Point3D) -> Vector3D {
-        return Vector3D::zero();
+    fn normal(self: &Sphere, position: Point3D) -> Vector3D {
+        return (position - self.origin).normalized();
     }
 }
