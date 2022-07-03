@@ -67,7 +67,6 @@ impl Geometry for Sphere {
         let discriminant = ((d * (e - c)) * (d * (e - c))) - (d * d) * ((e - c) * (e - c) - r * r);
 
         /*
-        println!("Disc: {}", discriminant);
         println!("Offset: {}", offset);
         println!("Ray Direction {}", ray.direction);
         println!("Ray Origin {}", ray.origin);
@@ -83,6 +82,7 @@ impl Geometry for Sphere {
         let t1 = (-d * (e - c) + root) / (d * d);
         let t2 = (-d * (e - c) - root) / (d * d);
 
+        //println!("Disc: {}", discriminant);
         //println!("t1: {}, t2: {}", t1, t2);
 
         if t1 < 0.0 && t2 < 0.0 {

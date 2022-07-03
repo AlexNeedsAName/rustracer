@@ -3,12 +3,12 @@ pub mod geometry;
 extern crate image;
 extern crate matrix;
 
+use geometry::Geometry;
+use geometry::Ray;
+use geometry::Rayhit;
 use image::Color;
 use image::Image;
 use matrix::vector::Vector3D;
-use geometry::Ray;
-use geometry::Rayhit;
-use geometry::Geometry;
 
 // Some cooridante ground rules:
 // x is east/west, y is up/down, z is north/south
@@ -40,7 +40,7 @@ impl Raytracer {
         if closest_hit.distance <= 0.0 {
             return Color::new(128, 0, 0, 255);
         } else {
-            return Color::new(128,0,0,255);
+            return Color::new(255, 255, 255, 255);
         }
     }
 
@@ -56,7 +56,8 @@ impl Raytracer {
         let half_plane_height =
             half_plane_width * image.get_height() as f32 / image.get_width() as f32;
 
-        let _top_left = camera.position + camera.look - up * half_plane_height - right * half_plane_width;
+        let _top_left =
+            camera.position + camera.look - up * half_plane_height - right * half_plane_width;
         let top_left = Vector3D::new([-0.407716, 0.407716, 0.817028]);
 
         println!(
@@ -69,6 +70,7 @@ impl Raytracer {
         let _step_x = right * (2.0 * half_plane_width / image.get_width() as f32);
         let _step_y = up * (2.0 * half_plane_height / image.get_height() as f32);
 
+        //let ahh = 0.00390625;
         let ahh = 0.001592640625;
         let step_x = Vector3D::new([ahh, 0.0, 0.0]);
         let step_y = Vector3D::new([0.0, -ahh, 0.0]);

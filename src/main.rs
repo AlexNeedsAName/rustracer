@@ -4,18 +4,9 @@ extern crate image;
 extern crate matrix;
 
 use image::Image;
-use matrix::vector::{
-    Point3D,
-    Vector3D,
-};
-use raytracer::{
-    Raytracer,
-    Camera,
-};
-use raytracer::geometry::{
-    Geometry,
-    Sphere,
-};
+use matrix::vector::{Point3D, Vector3D};
+use raytracer::geometry::{Geometry, Sphere};
+use raytracer::{Camera, Raytracer};
 
 // Some cooridante ground rules:
 // x is east/west, y is up/down, z is north/south
