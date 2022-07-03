@@ -9,6 +9,7 @@ use geometry::Rayhit;
 use image::Color;
 use image::Image;
 use matrix::vector::Vector3D;
+use more_asserts as ma;
 
 // Some cooridante ground rules:
 // x is east/west, y is up/down, z is north/south
@@ -27,20 +28,21 @@ pub struct Camera {
 
 impl Raytracer {
     pub fn trace(ray: Ray, scene: &Vec<Box<dyn Geometry>>) -> Color {
-        let mut closest_hit = Rayhit::miss();
+        let mut closest_hit: Option<Rayhit> = None;
+        let mut closest_dist = f32::INFINITY;
         for object in scene.iter() {
-            let hit = object.intersect(&ray);
-            if (closest_hit.distance == -1.0 && hit.distance > 0.0)
-                || hit.distance < closest_hit.distance
-            {
-                closest_hit = hit;
+            match object.intersect(&ray, closest_dist) {
+                Some(hit) => {
+                    closest_dist = hit.distance;
+                    closest_hit = Some(hit);
+                }
+                None => {}
             }
         }
 
-        if closest_hit.distance <= 0.0 {
-            return Color::new(128, 0, 0, 255);
-        } else {
-            return Color::new(255, 255, 255, 255);
+        match closest_hit {
+            Some(hit) => hit.material.color,
+            None => Color::new(0, 0, 0, 0),
         }
     }
 
@@ -70,7 +72,6 @@ impl Raytracer {
         let _step_x = right * (2.0 * half_plane_width / image.get_width() as f32);
         let _step_y = up * (2.0 * half_plane_height / image.get_height() as f32);
 
-        //let ahh = 0.00390625;
         let ahh = 0.001592640625;
         let step_x = Vector3D::new([ahh, 0.0, 0.0]);
         let step_y = Vector3D::new([0.0, -ahh, 0.0]);

@@ -3,8 +3,9 @@ mod raytracer;
 extern crate image;
 extern crate matrix;
 
-use image::Image;
+use image::{Color, Image};
 use matrix::vector::{Point3D, Vector3D};
+use raytracer::geometry::material::{Material, Shading};
 use raytracer::geometry::{Geometry, Sphere};
 use raytracer::{Camera, Raytracer};
 
@@ -24,6 +25,13 @@ fn main() {
     scene.push(Box::new(Sphere {
         origin: Point3D::new([2.0, 2.0, 16.0]),
         radius: 5.3547,
+        material: Material::new(Color::new(255, 255, 255, 255), 0.0, Shading::FLAT, None),
+    }));
+
+    scene.push(Box::new(Sphere {
+        origin: Point3D::zero(),
+        radius: f32::INFINITY,
+        material: Material::new(Color::new(128, 0, 0, 255), 0.0, Shading::FLAT, None),
     }));
 
     Raytracer::render(&camera, &scene, &mut image);
