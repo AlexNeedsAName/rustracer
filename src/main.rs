@@ -3,12 +3,12 @@ mod raytracer;
 extern crate image;
 extern crate matrix;
 
-use std::rc::Rc;
 use image::{Color, Image};
 use matrix::vector::{Point3D, Vector3D};
 use raytracer::geometry::material::{Material, Shading};
 use raytracer::geometry::{Geometry, Sphere};
 use raytracer::{Camera, Raytracer};
+use std::rc::Rc;
 
 // Some cooridante ground rules:
 // x is east/west, y is up/down, z is north/south
@@ -29,6 +29,16 @@ fn main() {
         material: Material::new(Color::new(0, 0, 255, 255), 0.0, Shading::DIFFUSE, None),
     }));
     scene.push(Rc::new(Sphere {
+        origin: Point3D::new([2.0, 0.0, 0.0]),
+        radius: 1.0,
+        material: Material::new(Color::new(0, 0, 255, 255), 0.0, Shading::DIFFUSE, None),
+    }));
+    scene.push(Rc::new(Sphere {
+        origin: Point3D::new([0.0, 0.0, 16.0]),
+        radius: 10.0,
+        material: Material::new(Color::new(255, 255, 255, 64), 0.0, Shading::DIFFUSE, None),
+    }));
+    scene.push(Rc::new(Sphere {
         origin: Point3D::new([10.0, 0.0, 16.0]),
         radius: 2.0,
         material: Material::new(Color::new(255, 0, 0, 255), 0.0, Shading::DIFFUSE, None),
@@ -36,18 +46,12 @@ fn main() {
     scene.push(Rc::new(Sphere {
         origin: Point3D::zero(),
         radius: f32::INFINITY,
-        material: Material::new(Color::new(255, 255, 255, 255), 0.0, Shading::FLAT, None),
+        material: Material::new(Color::new(0, 0, 0, 255), 0.0, Shading::FLAT, None),
     }));
 
-    let light = Point3D::new([2.0, 2.0, 2.0]);
+    let light = Point3D::new([2.0, 2.0, -8.0]);
 
     Raytracer::render(&camera, &scene, light, &mut image);
-
-    let white = Color::new(255,255,255,255);
-    println!("Color: {:?}", white * 0.75);
-    println!("Color: {:?}", white * 0.5);
-    println!("Color: {:?}", white * 0.25);
-    println!("Color: {:?}", white * 0.0);
 
     image.save(&"output.png".to_owned());
 }

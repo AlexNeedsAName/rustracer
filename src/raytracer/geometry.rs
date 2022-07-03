@@ -22,7 +22,13 @@ pub struct Rayhit {
 }
 
 impl Rayhit {
-    pub fn new(dist: f32, pos: Point3D, normal: Vector3D, material: Material, obj: Rc<dyn Geometry>) -> Rayhit {
+    pub fn new(
+        dist: f32,
+        pos: Point3D,
+        normal: Vector3D,
+        material: Material,
+        obj: Rc<dyn Geometry>,
+    ) -> Rayhit {
         return Rayhit {
             dist: dist,
             pos: pos,
@@ -74,9 +80,9 @@ impl Geometry for Sphere {
                     ray.direction * f32::INFINITY,
                     -ray.direction,
                     self.material,
-                    self
+                    self,
                 ))
-            }
+            };
         }
 
         let d = ray.direction;
@@ -115,7 +121,7 @@ impl Geometry for Sphere {
                 hit_pos,
                 self.normal(hit_pos),
                 self.material,
-                self
+                self,
             ))
         } else if t2 < closest_dist && (t1 < zero || t2 < t1) {
             let hit_pos = ray.at(t2);
@@ -124,11 +130,11 @@ impl Geometry for Sphere {
                 hit_pos,
                 self.normal(hit_pos),
                 self.material,
-                self
+                self,
             ))
         } else {
             None
-        }
+        };
     }
 
     fn normal(self: &Sphere, position: Point3D) -> Vector3D {

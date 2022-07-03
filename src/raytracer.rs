@@ -31,10 +31,29 @@ pub struct Camera {
 }
 
 impl Raytracer {
-    pub fn trace(ray: &Ray, scene: &Vec<Rc<dyn Geometry>>, light: Point3D) -> Color {
+    pub fn trace(
+        ray: &Ray,
+        scene: &Vec<Rc<dyn Geometry>>,
+        light: Point3D,
+        depth: u32,
+        ignore: Option<Rc<dyn Geometry>>,
+    ) -> Color {
+        // if depth < 0 {
+        //     return Color::new(0, 0, 0, 0);
+        // }
         let mut closest_hit: Option<Rayhit> = None;
         let mut closest_dist = f32::INFINITY;
         for object in scene.iter() {
+            match &ignore {
+                Some(ignore) => {
+                    if (&**ignore as *const dyn Geometry as *const ())
+                        == (&**object as *const dyn Geometry as *const ())
+                    {
+                        continue;
+                    }
+                }
+                None => {}
+            }
             match Rc::clone(object).intersect(ray, closest_dist) {
                 Some(hit) => {
                     closest_dist = hit.dist;
@@ -45,54 +64,69 @@ impl Raytracer {
         }
 
         match closest_hit {
-            Some(hit) => match hit.material.shading {
-                Shading::FLAT => hit.material.color,
-                Shading::DIFFUSE => {
-                    let to_light = light - hit.pos;
-                    let dist_to_light = to_light.norm();
-                    let to_light = to_light * (1.0 / dist_to_light);
+            Some(hit) => {
+                let mut color = match hit.material.shading {
+                    Shading::FLAT => hit.material.color,
+                    Shading::DIFFUSE => {
+                        let to_light = light - hit.pos;
+                        let dist_to_light = to_light.norm();
+                        let to_light = to_light * (1.0 / dist_to_light);
 
-                    let min = 0.0;
+                        let min = 0.0;
 
-                    let mut brightness = hit.normal * to_light;
-                    if brightness < min {
-                        brightness = min;
-                    } else if hit.dist.is_finite() {
-                        // Add shadows
-                        let min_shade = min / brightness;
-                        let ray_to_light = Ray {
-                            direction: to_light,
-                            origin: hit.pos,
-                        };
+                        let mut brightness = hit.normal * to_light;
+                        if brightness < min {
+                            brightness = min;
+                        } else if hit.dist.is_finite() {
+                            // Add shadows
+                            let min_shade = min / brightness;
+                            let ray_to_light = Ray {
+                                direction: to_light,
+                                origin: hit.pos,
+                            };
 
-                        let mut light_amount = 1.0;
-                        for object in scene.iter() {
-                            // Don't let an object cast a shadow on itself
-                            if (&*hit.obj as *const dyn Geometry as *const ())
-                                == (&**object as *const dyn Geometry as *const ())
-                            {
-                                continue;
-                            }
-                            match Rc::clone(object).intersect(&ray_to_light, dist_to_light) {
-                                Some(shadow_hit) => {
-                                    light_amount *= shadow_hit.material.color.a as f32;
-                                    if light_amount <= min_shade {
-                                        light_amount = min_shade;
-                                        break;
-                                    }
+                            let mut light_amount = 1.0;
+                            for object in scene.iter() {
+                                // Don't let an object cast a shadow on itself
+                                if (&*hit.obj as *const dyn Geometry as *const ())
+                                    == (&**object as *const dyn Geometry as *const ())
+                                {
+                                    continue;
                                 }
-                                None => {}
+                                match Rc::clone(object).intersect(&ray_to_light, dist_to_light) {
+                                    Some(shadow_hit) => {
+                                        light_amount *= 1.0 - shadow_hit.material.color.a;
+                                        if light_amount <= min_shade {
+                                            light_amount = min_shade;
+                                            break;
+                                        }
+                                    }
+                                    None => {}
+                                }
                             }
+                            brightness *= light_amount;
+                            // println!("brightness: {}", brightness);
                         }
-                        brightness *= light_amount;
-                        // println!("brightness: {}", brightness);
-                    }
 
-                    let c = hit.material.color * brightness;
-                    // println!("C: {:?}", c);
-                    c
+                        hit.material.color * brightness
+                    }
+                };
+                // Send a ray through if it's transparent
+                if color.a < 1.0 {
+                    let passthrough_color = Raytracer::trace(
+                        &Ray {
+                            direction: ray.direction,
+                            origin: hit.pos,
+                        },
+                        scene,
+                        light,
+                        depth - 1,
+                        Some(hit.obj)
+                    );
+                    color = color.overlay(passthrough_color);
                 }
-            },
+                color
+            }
             None => Color::new(0, 0, 0, 0),
         }
     }
@@ -137,7 +171,7 @@ impl Raytracer {
                     direction: ray_direction.normalized(),
                     origin: cam.position,
                 };
-                img.set_pixelu32(x, y, Raytracer::trace(&ray, scene, light));
+                img.set_pixelu32(x, y, Raytracer::trace(&ray, scene, light, 1, None));
                 ray_direction = ray_direction + step_x;
             }
             row_start = row_start + step_y;
