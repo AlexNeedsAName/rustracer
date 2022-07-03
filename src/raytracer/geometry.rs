@@ -4,11 +4,12 @@ extern crate matrix;
 use std::fmt;
 use std::rc::Rc;
 
-pub mod material;
-
-use material::Material;
 use matrix::vector::Point3D;
 use matrix::vector::Vector3D;
+
+use material::Material;
+
+pub mod material;
 
 // Some cooridante ground rules:
 // x is east/west, y is up/down, z is north/south
@@ -17,7 +18,7 @@ pub struct Rayhit {
     pub dist: f32,
     pub pos: Point3D,
     pub normal: Vector3D,
-    pub material: Material,
+    pub material: Rc<Material>,
     pub obj: Rc<dyn Geometry>,
 }
 
@@ -26,7 +27,7 @@ impl Rayhit {
         dist: f32,
         pos: Point3D,
         normal: Vector3D,
-        material: Material,
+        material: Rc<Material>,
         obj: Rc<dyn Geometry>,
     ) -> Rayhit {
         return Rayhit {
@@ -61,11 +62,10 @@ pub trait Geometry {
     fn normal(&self, position: Point3D) -> Vector3D;
 }
 
-#[derive(Copy, Clone)]
 pub struct Sphere {
     pub origin: Point3D,
     pub radius: f32,
-    pub material: Material,
+    pub material: Rc<Material>,
 }
 
 impl Geometry for Sphere {
@@ -79,7 +79,7 @@ impl Geometry for Sphere {
                     f32::INFINITY,
                     ray.direction * f32::INFINITY,
                     -ray.direction,
-                    self.material,
+                    Rc::clone(&self.material),
                     self,
                 ))
             };
@@ -118,7 +118,7 @@ impl Geometry for Sphere {
                 t1,
                 hit_pos,
                 self.normal(hit_pos),
-                self.material,
+                Rc::clone(&self.material),
                 self,
             ))
         } else if t2 < closest_dist && (t1 < 0.0 || t2 < t1) {
@@ -127,7 +127,7 @@ impl Geometry for Sphere {
                 t2,
                 hit_pos,
                 self.normal(hit_pos),
-                self.material,
+                Rc::clone(&self.material),
                 self,
             ))
         } else {
@@ -137,5 +137,57 @@ impl Geometry for Sphere {
 
     fn normal(self: &Sphere, position: Point3D) -> Vector3D {
         return (position - self.origin).normalized();
+    }
+}
+
+pub struct Triangle {
+    pub a: Point3D,
+    pub b: Point3D,
+    pub c: Point3D,
+    pub material: Rc<Material>,
+}
+
+impl Geometry for Triangle {
+    fn intersect(self: Rc<Self>, ray: &Ray, closest_dist: f32) -> Option<Rayhit> {
+        let a = self.a.x() - self.b.x();
+        let b = self.a.y() - self.b.y();
+        let c = self.a.z() - self.b.z();
+        let d = self.a.x() - self.c.x();
+        let e = self.a.y() - self.c.y();
+        let f = self.a.z() - self.c.z();
+        let g = ray.direction.x();
+        let h = ray.direction.y();
+        let i = ray.direction.z();
+        let j = self.a.x() - ray.origin.x();
+        let k = self.a.y() - ray.origin.y();
+        let l = self.a.z() - ray.origin.z();
+
+        let m = a * (e * i - h * f) + b * (g * f - d * i) + c * (d * h - e * g);
+        let beta = (j * (e * i - h * f) + k * (g * f - d * i) + l * (d * h - e * g)) / m;
+        let gamma = (i * (a * k - j * b) + h * (j * c - a * l) + g * (b * l - k * c)) / m;
+        let t = -(f * (a * k - j * b) + e * (j * c - a * l) + d * (b * l - k * c)) / m;
+
+        return if t < 0.0
+            || t > closest_dist
+            || gamma < 0.0
+            || gamma > 1.0
+            || beta < 0.0
+            || beta > 1.0 - gamma
+        {
+            None
+        } else {
+            let hit_pos = ray.at(t);
+            Some(Rayhit::new(
+                t,
+                hit_pos,
+                self.normal(hit_pos),
+                Rc::clone(&self.material),
+                self,
+            ))
+        };
+    }
+
+    fn normal(self: &Triangle, _position: Point3D) -> Vector3D {
+        return (self.c - self.a).cross(&(self.b - self.a)).normalized();
     }
 }
