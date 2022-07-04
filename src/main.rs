@@ -21,9 +21,9 @@ fn main() {
     let mut image = Image::new(512, 512);
     let camera = Camera {
         position: Vector3D::new([0.0, 0.0, 0.0]),
-        look: Vector3D::new([0.0, 0.0, 1.0]),
+        look: Vector3D::new([0.0, 0.0, 2.0]),
         up: Vector3D::new([0.0, 1.0, 0.0]),
-        fov: 60.0,
+        fov: 53.13010235,
     };
 
     let mirror = Rc::new(Material::new(
@@ -80,7 +80,7 @@ fn main() {
         material: Rc::clone(&shiny_red),
     }));
 
-    // The room contianing the spheres:
+    // The room containing the spheres:
     //Back wall
     scene.push(Rc::new(Triangle {
         a: Point3D::new([-8.0, -2.0, 20.0]),

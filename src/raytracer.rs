@@ -149,6 +149,18 @@ impl Raytracer {
         }
     }
 
+    pub fn get_ray(cam: &Camera, img: &Image, x: u32, y: u32, width: f32, height: f32) -> Ray {
+        let right = cam.look.cross(&cam.up).scale(-1.0).normalized();
+        let up = right.cross(&cam.look).scale(-1.0).normalized();
+        let center = cam.position + cam.look;
+
+        return Ray {
+            origin: cam.position,
+            direction: center + right * (width * (2.0 * x as f32 / img.get_width() as f32 - 1.0))
+                - up * (height * (2.0 * y as f32 / img.get_height() as f32 - 1.0)),
+        };
+    }
+
     pub fn render(
         cam: &Camera,
         scene: &Vec<Rc<dyn Geometry>>,
@@ -156,55 +168,24 @@ impl Raytracer {
         img: &mut Image,
         reflections: u32,
     ) {
-        let right = cam.look.cross(&cam.up).scale(-1.0).normalized();
-        let up = right.cross(&cam.look).scale(-1.0).normalized(); // Ensure the up vector is orthagonal to our look direction
-
-        println!("right: {}", right);
-        println!("up: {}", up);
-
         let distance = cam.look.norm();
-        let half_plane_width = distance * f32::tan(cam.fov.to_radians());
-        let half_plane_height = half_plane_width * img.get_height() as f32 / img.get_width() as f32;
+        let plane_width = distance * f32::tan(cam.fov.to_radians() / 2.0);
+        let plane_height = plane_width * img.get_height() as f32 / img.get_width() as f32;
 
-        let _top_left = cam.position + cam.look - up * half_plane_height - right * half_plane_width;
-        let top_left = Vector3D::new([-0.407716, 0.407716, 0.817028]);
-
-        println!(
-            "half_plane_height: {}, width: {}",
-            half_plane_height, half_plane_width
-        );
-
-        println!("Top Left: {}", top_left);
-
-        let _step_x = right * (2.0 * half_plane_width / img.get_width() as f32);
-        let _step_y = up * (2.0 * half_plane_height / img.get_height() as f32);
-
-        let ahh = 0.001592640625;
-        let step_x = Vector3D::new([ahh, 0.0, 0.0]);
-        let step_y = Vector3D::new([0.0, -ahh, 0.0]);
-
-        println!("step x: {}", step_x);
-        println!("step y: {}", step_y);
-
-        let mut row_start = top_left;
-        let mut ray_direction = row_start;
         for y in 0..img.get_height() {
-            ray_direction = row_start;
             for x in 0..img.get_width() {
-                let ray = Ray {
-                    direction: ray_direction.normalized(),
-                    origin: cam.position,
-                };
                 img.set_pixelu32(
                     x,
                     y,
-                    Raytracer::trace(&ray, scene, light, reflections, None),
+                    Raytracer::trace(
+                        &Raytracer::get_ray(cam, img, x, y, plane_width, plane_height),
+                        scene,
+                        light,
+                        reflections,
+                        None,
+                    ),
                 );
-                ray_direction = ray_direction + step_x;
             }
-            row_start = row_start + step_y;
         }
-
-        println!("Bottom Right: {}", ray_direction);
     }
 }
