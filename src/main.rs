@@ -18,7 +18,7 @@ mod raytracer;
 // x is east/west, y is up/down, z is north/south
 
 fn main() {
-    let mut image = Image::new(512, 512);
+    let image = Image::new(512, 512);
     let camera = Camera {
         position: Vector3D::new([0.0, 0.0, 0.0]),
         look: Vector3D::new([0.0, 0.0, 2.0]),
@@ -126,7 +126,7 @@ fn main() {
 
     let light = Point3D::new([3.0, 5.0, 15.0]);
 
-    Raytracer::render(&camera, &scene, light, &mut image, 20);
-
-    image.save(&"output.png".to_owned());
+    let mut raytracer = Raytracer::new(&camera, image);
+    raytracer.render(&scene, light, 20);
+    raytracer.save(&"output.png".to_owned());
 }

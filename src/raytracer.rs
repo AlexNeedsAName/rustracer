@@ -19,8 +19,13 @@ pub mod geometry;
 // x is east/west, y is up/down, z is north/south
 
 pub struct Raytracer {
-    //    image: Image,
-    //    cam: Camera,
+    origin: Point3D,
+    center: Point3D,
+    up: Vector3D,
+    right: Vector3D,
+    plane_width: f32,
+    plane_height: f32,
+    img: Image,
 }
 
 pub struct Camera {
@@ -31,6 +36,24 @@ pub struct Camera {
 }
 
 impl Raytracer {
+    pub fn new(cam: &Camera, img: Image) -> Raytracer {
+        let right = cam.look.cross(&cam.up).scale(-1.0).normalized();
+        let up = right.cross(&cam.look).scale(-1.0).normalized();
+        let center = cam.position + cam.look;
+        let distance = cam.look.norm();
+        let plane_width = distance * f32::tan(cam.fov.to_radians() / 2.0);
+        let plane_height = plane_width * img.get_height() as f32 / img.get_width() as f32;
+        return Raytracer {
+            origin: cam.position,
+            right,
+            up,
+            center,
+            plane_width,
+            plane_height,
+            img,
+        };
+    }
+
     pub fn trace(
         ray: &Ray,
         scene: &Vec<Rc<dyn Geometry>>,
@@ -149,43 +172,30 @@ impl Raytracer {
         }
     }
 
-    pub fn get_ray(cam: &Camera, img: &Image, x: u32, y: u32, width: f32, height: f32) -> Ray {
-        let right = cam.look.cross(&cam.up).scale(-1.0).normalized();
-        let up = right.cross(&cam.look).scale(-1.0).normalized();
-        let center = cam.position + cam.look;
-
+    pub fn get_ray(&self, x: u32, y: u32) -> Ray {
         return Ray {
-            origin: cam.position,
-            direction: center + right * (width * (2.0 * x as f32 / img.get_width() as f32 - 1.0))
-                - up * (height * (2.0 * y as f32 / img.get_height() as f32 - 1.0)),
+            origin: self.origin,
+            direction: self.center
+                + self.right
+                    * (self.plane_width * (2.0 * x as f32 / self.img.get_width() as f32 - 1.0))
+                - self.up
+                    * (self.plane_height * (2.0 * y as f32 / self.img.get_height() as f32 - 1.0)),
         };
     }
 
-    pub fn render(
-        cam: &Camera,
-        scene: &Vec<Rc<dyn Geometry>>,
-        light: Point3D,
-        img: &mut Image,
-        reflections: u32,
-    ) {
-        let distance = cam.look.norm();
-        let plane_width = distance * f32::tan(cam.fov.to_radians() / 2.0);
-        let plane_height = plane_width * img.get_height() as f32 / img.get_width() as f32;
-
-        for y in 0..img.get_height() {
-            for x in 0..img.get_width() {
-                img.set_pixelu32(
+    pub fn render(&mut self, scene: &Vec<Rc<dyn Geometry>>, light: Point3D, reflections: u32) {
+        for y in 0..self.img.get_height() {
+            for x in 0..self.img.get_width() {
+                self.img.set_pixelu32(
                     x,
                     y,
-                    Raytracer::trace(
-                        &Raytracer::get_ray(cam, img, x, y, plane_width, plane_height),
-                        scene,
-                        light,
-                        reflections,
-                        None,
-                    ),
+                    Raytracer::trace(&self.get_ray(x, y), scene, light, reflections, None),
                 );
             }
         }
+    }
+
+    pub fn save(&self, str: &String) {
+        self.img.save(str);
     }
 }
