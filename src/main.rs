@@ -9,6 +9,7 @@ use matrix::vector::{Point3D, Vector3D};
 use raytracer::geometry::material::{Material, Shading};
 use raytracer::geometry::{Geometry, Sphere};
 use raytracer::{Camera, Raytracer};
+use raytracer::Antialiasing::{Off, Grid};
 
 use crate::raytracer::geometry::Triangle;
 
@@ -18,6 +19,7 @@ mod raytracer;
 // x is east/west, y is up/down, z is north/south
 
 fn main() {
+    // let image = Image::new(7680, 4320);
     let image = Image::new(512, 512);
     let camera = Camera {
         position: Vector3D::new([0.0, 0.0, 0.0]),
@@ -126,7 +128,8 @@ fn main() {
 
     let light = Point3D::new([3.0, 5.0, 15.0]);
 
-    let mut raytracer = Raytracer::new(&camera, image);
+    // let mut raytracer = Raytracer::new(&camera, image, Off);
+    let mut raytracer = Raytracer::new(&camera, image, Grid(8));
     raytracer.render(&scene, light, 20);
     raytracer.save(&"output.png".to_owned());
 }

@@ -18,6 +18,11 @@ pub mod geometry;
 // Some cooridante ground rules:
 // x is east/west, y is up/down, z is north/south
 
+pub enum Antialiasing {
+    Off,
+    Grid(u32),
+}
+
 pub struct Raytracer {
     origin: Point3D,
     center: Point3D,
@@ -26,6 +31,7 @@ pub struct Raytracer {
     plane_width: f32,
     plane_height: f32,
     img: Image,
+    aa: Antialiasing,
 }
 
 pub struct Camera {
@@ -36,7 +42,7 @@ pub struct Camera {
 }
 
 impl Raytracer {
-    pub fn new(cam: &Camera, img: Image) -> Raytracer {
+    pub fn new(cam: &Camera, img: Image, aa: Antialiasing) -> Raytracer {
         let right = cam.look.cross(&cam.up).scale(-1.0).normalized();
         let up = right.cross(&cam.look).scale(-1.0).normalized();
         let center = cam.position + cam.look;
@@ -51,6 +57,7 @@ impl Raytracer {
             plane_width,
             plane_height,
             img,
+            aa,
         };
     }
 
@@ -172,25 +179,58 @@ impl Raytracer {
         }
     }
 
-    pub fn get_ray(&self, x: u32, y: u32) -> Ray {
+    pub fn get_ray(&self, x: f32, y: f32) -> Ray {
         return Ray {
             origin: self.origin,
             direction: self.center
-                + self.right
-                    * (self.plane_width * (2.0 * x as f32 / self.img.get_width() as f32 - 1.0))
-                - self.up
-                    * (self.plane_height * (2.0 * y as f32 / self.img.get_height() as f32 - 1.0)),
+                + self.right * (self.plane_width * (2.0 * x / self.img.get_width() as f32 - 1.0))
+                - self.up * (self.plane_height * (2.0 * y / self.img.get_height() as f32 - 1.0)),
         };
     }
 
     pub fn render(&mut self, scene: &Vec<Rc<dyn Geometry>>, light: Point3D, reflections: u32) {
-        for y in 0..self.img.get_height() {
-            for x in 0..self.img.get_width() {
-                self.img.set_pixelu32(
-                    x,
-                    y,
-                    Raytracer::trace(&self.get_ray(x, y), scene, light, reflections, None),
-                );
+        match self.aa {
+            Antialiasing::Off => {
+                for y in 0..self.img.get_height() {
+                    for x in 0..self.img.get_width() {
+                        self.img.set_pixelu32(
+                            x,
+                            y,
+                            Raytracer::trace(
+                                &self.get_ray(x as f32, y as f32),
+                                scene,
+                                light,
+                                reflections,
+                                None,
+                            ),
+                        );
+                    }
+                }
+            }
+            Antialiasing::Grid(size) => {
+                let sub_step = 1.0 / size as f32;
+                let offset = -0.5 + sub_step * 0.5;
+                for y in 0..self.img.get_height() {
+                    for x in 0..self.img.get_width() {
+                        let mut color = Color::new(0, 0, 0, 0);
+                        for sub_x in 0..size {
+                            for sub_y in 0..size {
+                                color = color
+                                    + Raytracer::trace(
+                                        &self.get_ray(
+                                            x as f32 + offset + sub_step * sub_x as f32,
+                                            y as f32 + offset + sub_step * sub_y as f32,
+                                        ),
+                                        scene,
+                                        light,
+                                        reflections,
+                                        None,
+                                    );
+                            }
+                        }
+                        self.img.set_pixelu32(x, y, color * (1.0 / (size * size) as f32));
+                    }
+                }
             }
         }
     }
