@@ -8,3 +8,6 @@ edition = "2021"
 [dependencies]
 matrix = { path = "../matrix" }
 image = { path = "../image" }
+
+[profile.dev]
+opt-level = 3
