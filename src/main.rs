@@ -1,17 +1,16 @@
 extern crate image;
 extern crate matrix;
+extern crate num_cpus;
 
 use std::rc::Rc;
 
 use image::{Color, Image};
 use matrix::vector::{Point3D, Vector3D};
 
-use raytracer::geometry::material::{Material, Shading};
-use raytracer::geometry::{Geometry, Sphere};
+use raytracer::geometry::material::Material;
+use raytracer::geometry::{Geometry, Sphere, Triangle};
+use raytracer::Antialiasing::{Grid, Off};
 use raytracer::{Camera, Raytracer};
-use raytracer::Antialiasing::{Off, Grid};
-
-use crate::raytracer::geometry::Triangle;
 
 mod raytracer;
 
@@ -19,7 +18,10 @@ mod raytracer;
 // x is east/west, y is up/down, z is north/south
 
 fn main() {
-    // let image = Image::new(7680, 4320);
+    println!("Num Threads: {}", num_cpus::get());
+
+    // let image = Image::new(2560, 1080);
+    // let image = Image::new(7680, 7680);
     let image = Image::new(512, 512);
     let camera = Camera {
         position: Vector3D::new([0.0, 0.0, 0.0]),
@@ -30,38 +32,50 @@ fn main() {
 
     let mirror = Rc::new(Material::new(
         Color::new(0, 0, 0, 255),
+        0.0,
+        0.0,
+        0,
         1.0,
-        Shading::FLAT,
         None,
     ));
     let white = Rc::new(Material::new(
         Color::new(255, 255, 255, 255),
+        1.0,
         0.0,
-        Shading::DIFFUSE,
+        0,
+        0.0,
         None,
     ));
     let blue = Rc::new(Material::new(
         Color::new(0, 0, 255, 255),
+        1.0,
         0.0,
-        Shading::DIFFUSE,
+        0,
+        0.0,
         None,
     ));
     let red = Rc::new(Material::new(
         Color::new(255, 0, 0, 255),
+        0.5,
         0.0,
-        Shading::DIFFUSE,
+        0,
+        0.0,
         None,
     ));
     let shiny_red = Rc::new(Material::new(
         Color::new(255, 0, 0, 255),
-        0.1,
-        Shading::DIFFUSE,
+        1.0,
+        0.5,
+        50,
+        0.0,
         None,
     ));
     let void = Rc::new(Material::new(
         Color::new(0, 0, 0, 255),
         0.0,
-        Shading::FLAT,
+        0.0,
+        0,
+        0.0,
         None,
     ));
 
@@ -131,5 +145,5 @@ fn main() {
     // let mut raytracer = Raytracer::new(&camera, image, Off);
     let mut raytracer = Raytracer::new(&camera, image, Grid(8));
     raytracer.render(&scene, light, 20);
-    raytracer.save(&"output.png".to_owned());
+    raytracer.save(&"output/output.png".to_owned());
 }

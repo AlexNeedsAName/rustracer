@@ -1,22 +1,26 @@
 extern crate image;
 extern crate matrix;
+// extern crate num_cpus;
+// extern crate rayon;
 
 use std::rc::Rc;
+use std::thread;
 
 use image::Color;
 use image::Image;
 use matrix::vector::Point3D;
 use matrix::vector::Vector3D;
 
-use geometry::material::Shading;
 use geometry::Geometry;
 use geometry::Ray;
 use geometry::Rayhit;
 
 pub mod geometry;
 
-// Some cooridante ground rules:
+// Some coordinate ground rules:
 // x is east/west, y is up/down, z is north/south
+
+const AMBIENT: f32 = 0.2;
 
 pub enum Antialiasing {
     Off,
@@ -41,6 +45,16 @@ pub struct Camera {
     pub fov: f32,           // FOV of the resulting image.
 }
 
+pub fn clamp(input: f32) -> f32 {
+    return if input < 0.0 {
+        0.0
+    } else if input > 1.0 {
+        1.0
+    } else {
+        input
+    };
+}
+
 impl Raytracer {
     pub fn new(cam: &Camera, img: Image, aa: Antialiasing) -> Raytracer {
         let right = cam.look.cross(&cam.up).scale(-1.0).normalized();
@@ -59,6 +73,93 @@ impl Raytracer {
             img,
             aa,
         };
+    }
+
+    pub fn shade(
+        ray: &Ray,
+        hit: &Rayhit,
+        scene: &Vec<Rc<dyn Geometry>>,
+        light_source: Point3D,
+        reflections: u32,
+    ) -> Color {
+        let reflect = ray.direction - hit.normal * (ray.direction * hit.normal) * 2.0;
+        let to_light = light_source - hit.pos;
+        let dist_to_light = to_light.norm();
+        let to_light = to_light * (1.0 / dist_to_light);
+        let ray_to_light = Ray {
+            direction: to_light,
+            origin: hit.pos,
+        };
+
+        let half_angle = (to_light - ray.direction).normalized();
+
+        let mut light_amount = 1.0;
+        let light_color = Color::new(255, 255, 255, 255); //TODO: Light color per light
+
+        // How much of the light reaches the hit position?
+        for object in scene.iter() {
+            // Don't let an object cast a shadow on itself
+            if (&*hit.obj as *const dyn Geometry as *const ())
+                == (&**object as *const dyn Geometry as *const ())
+            {
+                continue;
+            }
+            match Rc::clone(object).intersect(&ray_to_light, dist_to_light) {
+                Some(shadow_hit) => {
+                    // Some light passes through transparent objects
+                    light_amount *= 1.0 - shadow_hit.material.color.a;
+                    if light_amount <= 0.0 {
+                        light_amount = 0.0;
+                        break;
+                    }
+                }
+                None => {}
+            }
+        }
+
+        // TODO: Make this section look less gross
+        let light_ambient = hit.material.color * AMBIENT; //TODO: Make a parameter for the raytracer.
+        let light_diffuse = hit.material.color
+            * (clamp(hit.normal * to_light) * light_amount * hit.material.diffuse);
+        let light_specular = light_color
+            * (f32::powi(clamp(hit.normal * half_angle), hit.material.specular_n)
+                * light_amount
+                * hit.material.specular);
+        let light_reflected = if reflections > 0 && hit.material.reflectivity > 0.0 {
+            Raytracer::trace(
+                &Ray {
+                    direction: reflect,
+                    origin: hit.pos,
+                },
+                scene,
+                light_source,
+                reflections - 1,
+                Some(Rc::clone(&hit.obj)),
+            )
+        } else {
+            hit.material.color
+        } * hit.material.reflectivity;
+        let light_transparent = if hit.material.color.a < 1.0 {
+            Raytracer::trace(
+                &Ray {
+                    direction: ray.direction,
+                    origin: hit.pos,
+                },
+                scene,
+                light_source,
+                reflections,
+                Some(Rc::clone(&hit.obj)),
+            )
+        } else {
+            Color::new(0, 0, 0, 0)
+        } * (1.0 - hit.material.color.a);
+        // color = color.overlay(passthrough_color);
+
+        return light_ambient
+            + light_diffuse
+            + light_specular
+            + light_reflected
+            + light_transparent;
     }
 
     pub fn trace(
@@ -90,93 +191,10 @@ impl Raytracer {
             }
         }
 
-        match closest_hit {
-            Some(hit) => {
-                let mut color = match hit.material.shading {
-                    Shading::FLAT => hit.material.color,
-                    Shading::DIFFUSE => {
-                        let to_light = light - hit.pos;
-                        let dist_to_light = to_light.norm();
-                        let to_light = to_light * (1.0 / dist_to_light);
-
-                        let min = 0.2;
-
-                        let mut brightness = hit.normal * to_light;
-                        if brightness < min {
-                            brightness = min;
-                        } else if hit.dist.is_finite() {
-                            // Add shadows
-                            let min_shade = min / brightness;
-                            let ray_to_light = Ray {
-                                direction: to_light,
-                                origin: hit.pos,
-                            };
-
-                            let mut light_amount = 1.0;
-                            for object in scene.iter() {
-                                // Don't let an object cast a shadow on itself
-                                if (&*hit.obj as *const dyn Geometry as *const ())
-                                    == (&**object as *const dyn Geometry as *const ())
-                                {
-                                    continue;
-                                }
-                                match Rc::clone(object).intersect(&ray_to_light, dist_to_light) {
-                                    Some(shadow_hit) => {
-                                        // Some light passes through transparent objects
-                                        light_amount *= 1.0 - shadow_hit.material.color.a;
-                                        if light_amount <= min_shade {
-                                            light_amount = min_shade;
-                                            break;
-                                        }
-                                    }
-                                    None => {}
-                                }
-                            }
-                            brightness *= light_amount;
-                            // println!("brightness: {}", brightness);
-                        }
-
-                        hit.material.color * brightness
-                    }
-                };
-                // Send a ray through if it's transparent
-                if color.a < 1.0 {
-                    let passthrough_color = Raytracer::trace(
-                        &Ray {
-                            direction: ray.direction,
-                            origin: hit.pos,
-                        },
-                        scene,
-                        light,
-                        reflections,
-                        Some(Rc::clone(&hit.obj)),
-                    );
-                    color = color.overlay(passthrough_color);
-                }
-                // Do reflections
-                if hit.material.reflectivity > 0.0 {
-                    let reflect = ray.direction - hit.normal * (ray.direction * hit.normal) * 2.0;
-                    if reflections > 0 {
-                        // println!("Reflecting");
-                        color = Raytracer::trace(
-                            &Ray {
-                                direction: reflect,
-                                origin: hit.pos,
-                            },
-                            scene,
-                            light,
-                            reflections - 1,
-                            Some(Rc::clone(&hit.obj)),
-                        )
-                        .average(color, hit.material.reflectivity)
-                    } else {
-                        println!("Reflection limit reached");
-                    };
-                }
-                color
-            }
+        return match closest_hit {
+            Some(hit) => Raytracer::shade(ray, &hit, scene, light, reflections),
             None => Color::new(0, 0, 0, 0),
-        }
+        };
     }
 
     pub fn get_ray(&self, x: f32, y: f32) -> Ray {
@@ -189,50 +207,66 @@ impl Raytracer {
     }
 
     pub fn render(&mut self, scene: &Vec<Rc<dyn Geometry>>, light: Point3D, reflections: u32) {
-        match self.aa {
-            Antialiasing::Off => {
-                for y in 0..self.img.get_height() {
-                    for x in 0..self.img.get_width() {
-                        self.img.set_pixelu32(
-                            x,
-                            y,
-                            Raytracer::trace(
-                                &self.get_ray(x as f32, y as f32),
-                                scene,
-                                light,
-                                reflections,
-                                None,
-                            ),
-                        );
-                    }
-                }
-            }
-            Antialiasing::Grid(size) => {
-                let sub_step = 1.0 / size as f32;
-                let offset = -0.5 + sub_step * 0.5;
-                for y in 0..self.img.get_height() {
-                    for x in 0..self.img.get_width() {
-                        let mut color = Color::new(0, 0, 0, 0);
-                        for sub_x in 0..size {
-                            for sub_y in 0..size {
-                                color = color
-                                    + Raytracer::trace(
-                                        &self.get_ray(
-                                            x as f32 + offset + sub_step * sub_x as f32,
-                                            y as f32 + offset + sub_step * sub_y as f32,
-                                        ),
-                                        scene,
-                                        light,
-                                        reflections,
-                                        None,
-                                    );
-                            }
-                        }
-                        self.img.set_pixelu32(x, y, color * (1.0 / (size * size) as f32));
-                    }
-                }
+        let num_threads = num_cpus::get();
+        let thread_pool = rayon::ThreadPoolBuilder::new()
+            .num_threads(num_threads)
+            .build()
+            .unwrap();
+
+        // for (x,y) in (0..self.img.get_width()).flat_map(move |a| (0..self.img.get_height()).map(move |b| (a, b))) {
+        //     self.render_pixel(x, y, scene, light, reflections);
+        // }
+
+        for y in 0..self.img.get_height() {
+            for x in 0..self.img.get_width() {
+                self.render_pixel(x, y, scene, light, reflections);
             }
         }
+    }
+
+    pub fn render_pixel(
+        &mut self,
+        x: u32,
+        y: u32,
+        scene: &Vec<Rc<dyn Geometry>>,
+        light: Point3D,
+        reflections: u32,
+    ) {
+        self.img.set_pixelu32(
+            x,
+            y,
+            match &self.aa {
+                Antialiasing::Off => Raytracer::trace(
+                    &self.get_ray(x as f32, y as f32),
+                    scene,
+                    light,
+                    reflections,
+                    None,
+                ),
+
+                Antialiasing::Grid(size) => {
+                    let sub_step = 1.0 / *size as f32;
+                    let offset = -0.5 + sub_step * 0.5;
+                    let mut color = Color::new(0, 0, 0, 0);
+                    for sub_x in 0..*size {
+                        for sub_y in 0..*size {
+                            color = color
+                                + Raytracer::trace(
+                                    &self.get_ray(
+                                        x as f32 + offset + sub_step * sub_x as f32,
+                                        y as f32 + offset + sub_step * sub_y as f32,
+                                    ),
+                                    scene,
+                                    light,
+                                    reflections,
+                                    None,
+                                );
+                        }
+                    }
+                    color * (1.0 / (size * size) as f32)
+                }
+            },
+        );
     }
 
     pub fn save(&self, str: &String) {
