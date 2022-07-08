@@ -8,6 +8,7 @@ edition = "2021"
 [dependencies]
 matrix = { path = "../matrix" }
 image = { path = "../image" }
+num_cpus = "1.0"
 
 [profile.dev]
 opt-level = 3

@@ -136,6 +136,7 @@ impl Raytracer {
             color = color + light_ambient + light_diffuse + light_specular
         }
 
+        assert_ne!(reflections, 0);
         let light_reflected = if reflections > 0 && hit.material.reflectivity > 0.0 {
             Raytracer::trace(
                 &Ray {
@@ -166,7 +167,7 @@ impl Raytracer {
         } * (1.0 - hit.material.color.a);
         // color = color.overlay(passthrough_color);
 
-        return color * (1.0/3.0) + light_reflected + light_transparent;
+        return color * (1.0 / lights.len() as f32) + light_reflected + light_transparent;
     }
 
     pub fn trace(

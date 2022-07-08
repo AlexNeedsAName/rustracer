@@ -1,0 +1,23 @@
+TODO: (in no particular order)
+- Multithreading
+    - How do I split the pixel array so multiple threads can write?
+        - split_at_mut would work, but each thread would only get a line of pixels, and I want each thread to get a square, and the order the squares are assigned should follow a hilbert curve because it looks pretty.
+- GUI:
+    - User should see render progress in real time.
+- Better light sources
+    - Lights should be able to be colored
+    - Lights should have a luminance value
+    - Any geometry should be able to be a light source and points should be sampled from its surface
+- Global illumination
+    - Colors should bounce off of walls, and I shouldn't just need to add a 20% ambient illumination to everything
+- More geometry
+    - Support for including STL files
+    - Ability to split geometry into boxes where the ray only computes intersections for everything inside the box if it hits the box. STL files with many triangles could be repeatedly subdivided
+- Better support for positioning things in scenes
+    - Should be able to transform any geometry object using a matrix
+- Animation support
+    - Between each frame, apply transformations to any moving objects and render the next frame
+    - Bézier curves would be nice to allow objects to trace paths
+- Add refraction
+    - Each object could have a speed for light passing through it. The light could compare the current medium speed to the speed of the new medium when entering.
+    - Ideally, we would trace a spectrum of wavelengths, so that different colors could refract differently and you could make a prism. That would be a lot more render time. Maybe an optional flag that gets enabled by the user, or it only gets activated if a ray passes through a new medium where it would matter.

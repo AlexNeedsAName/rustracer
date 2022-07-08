@@ -72,7 +72,7 @@ fn main() {
         None,
     ));
     let green = Rc::new(Material::new(
-        Color::new(255, 0, 0, 255),
+        Color::new(0, 255, 0, 128),
         0.5,
         0.0,
         0,
@@ -158,6 +158,9 @@ fn main() {
     let tmp3 = Point3D::new([-tmp1.x(), tmp1.y(), -tmp1.z()]);
     let back_light = tmp3 + focus;
 
+    // println!("Back light: {}", back_light);
+
+    // Debug spheres to visualize light positions
     // scene.push(Rc::new(Sphere {
     //     origin: key_light,
     //     radius: 0.1,
