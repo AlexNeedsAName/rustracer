@@ -79,52 +79,63 @@ impl Raytracer {
         ray: &Ray,
         hit: &Rayhit,
         scene: &Vec<Rc<dyn Geometry>>,
-        light_source: Point3D,
+        lights: &Vec<Point3D>,
         reflections: u32,
     ) -> Color {
+        let mut color = Color::new(0, 0, 0, 0);
         let reflect = ray.direction - hit.normal * (ray.direction * hit.normal) * 2.0;
-        let to_light = light_source - hit.pos;
-        let dist_to_light = to_light.norm();
-        let to_light = to_light * (1.0 / dist_to_light);
-        let ray_to_light = Ray {
-            direction: to_light,
-            origin: hit.pos,
-        };
+        for light_source in lights {
+            let to_light = light_source.clone() - hit.pos;
+            let dist_to_light = to_light.norm();
+            let to_light = to_light * (1.0 / dist_to_light);
+            let ray_to_light = Ray {
+                direction: to_light,
+                origin: hit.pos,
+            };
 
-        let half_angle = (to_light - ray.direction).normalized();
+            let half_angle = (to_light - ray.direction).normalized();
 
-        let mut light_amount = 1.0;
-        let light_color = Color::new(255, 255, 255, 255); //TODO: Light color per light
+            let mut light_amount = 1.0;
+            let light_color = Color::new(255, 255, 255, 255); //TODO: Light color per light
 
-        // How much of the light reaches the hit position?
-        for object in scene.iter() {
-            // Don't let an object cast a shadow on itself
-            if (&*hit.obj as *const dyn Geometry as *const ())
-                == (&**object as *const dyn Geometry as *const ())
-            {
-                continue;
-            }
-            match Rc::clone(object).intersect(&ray_to_light, dist_to_light) {
-                Some(shadow_hit) => {
-                    // Some light passes through transparent objects
-                    light_amount *= 1.0 - shadow_hit.material.color.a;
-                    if light_amount <= 0.0 {
-                        light_amount = 0.0;
-                        break;
+            // How much of the light reaches the hit position?
+            if hit.dist.is_finite() {
+                for object in scene.iter() {
+                    // Don't let an object cast a shadow on itself
+                    if (&*hit.obj as *const dyn Geometry as *const ())
+                        == (&**object as *const dyn Geometry as *const ())
+                    {
+                        continue;
+                    }
+                    match Rc::clone(object).intersect(&ray_to_light, dist_to_light) {
+                        Some(shadow_hit) => {
+                            // Some light passes through transparent objects
+                            light_amount *= 1.0 - shadow_hit.material.color.a;
+                            if light_amount <= 0.0 {
+                                light_amount = 0.0;
+                                break;
+                            }
+                        }
+                        None => {}
                     }
                 }
-                None => {}
+            } else {
+                color = hit.material.color;
+                continue;
             }
+
+            // TODO: Make this section look less gross
+            let light_ambient = hit.material.color * AMBIENT; //TODO: Make a parameter for the raytracer.
+            let light_diffuse = hit.material.color
+                * (clamp(hit.normal * to_light) * light_amount * hit.material.diffuse);
+            let light_specular = light_color
+                * (f32::powi(clamp(hit.normal * half_angle), hit.material.specular_n)
+                    * light_amount
+                    * hit.material.specular);
+
+            color = color + light_ambient + light_diffuse + light_specular
         }
 
-        // TODO: Make this section look less gross
-        let light_ambient = hit.material.color * AMBIENT; //TODO: Make a parameter for the raytracer.
-        let light_diffuse = hit.material.color
-            * (clamp(hit.normal * to_light) * light_amount * hit.material.diffuse);
-        let light_specular = light_color
-            * (f32::powi(clamp(hit.normal * half_angle), hit.material.specular_n)
-                * light_amount
-                * hit.material.specular);
         let light_reflected = if reflections > 0 && hit.material.reflectivity > 0.0 {
             Raytracer::trace(
                 &Ray {
@@ -132,7 +143,7 @@ impl Raytracer {
                     origin: hit.pos,
                 },
                 scene,
-                light_source,
+                lights,
                 reflections - 1,
                 Some(Rc::clone(&hit.obj)),
             )
@@ -146,7 +157,7 @@ impl Raytracer {
                     origin: hit.pos,
                 },
                 scene,
-                light_source,
+                lights,
                 reflections,
                 Some(Rc::clone(&hit.obj)),
             )
@@ -155,17 +166,13 @@ impl Raytracer {
         } * (1.0 - hit.material.color.a);
         // color = color.overlay(passthrough_color);
 
-        return light_ambient
-            + light_diffuse
-            + light_specular
-            + light_reflected
-            + light_transparent;
+        return color * (1.0/3.0) + light_reflected + light_transparent;
     }
 
     pub fn trace(
         ray: &Ray,
         scene: &Vec<Rc<dyn Geometry>>,
-        light: Point3D,
+        lights: &Vec<Point3D>,
         reflections: u32,
         ignore: Option<Rc<dyn Geometry>>,
     ) -> Color {
@@ -192,7 +199,7 @@ impl Raytracer {
         }
 
         return match closest_hit {
-            Some(hit) => Raytracer::shade(ray, &hit, scene, light, reflections),
+            Some(hit) => Raytracer::shade(ray, &hit, scene, lights, reflections),
             None => Color::new(0, 0, 0, 0),
         };
     }
@@ -206,7 +213,12 @@ impl Raytracer {
         };
     }
 
-    pub fn render(&mut self, scene: &Vec<Rc<dyn Geometry>>, light: Point3D, reflections: u32) {
+    pub fn render(
+        &mut self,
+        scene: &Vec<Rc<dyn Geometry>>,
+        lights: &Vec<Point3D>,
+        reflections: u32,
+    ) {
         let num_threads = num_cpus::get();
         let thread_pool = rayon::ThreadPoolBuilder::new()
             .num_threads(num_threads)
@@ -219,7 +231,7 @@ impl Raytracer {
 
         for y in 0..self.img.get_height() {
             for x in 0..self.img.get_width() {
-                self.render_pixel(x, y, scene, light, reflections);
+                self.render_pixel(x, y, scene, lights, reflections);
             }
         }
     }
@@ -229,7 +241,7 @@ impl Raytracer {
         x: u32,
         y: u32,
         scene: &Vec<Rc<dyn Geometry>>,
-        light: Point3D,
+        lights: &Vec<Point3D>,
         reflections: u32,
     ) {
         self.img.set_pixelu32(
@@ -239,7 +251,7 @@ impl Raytracer {
                 Antialiasing::Off => Raytracer::trace(
                     &self.get_ray(x as f32, y as f32),
                     scene,
-                    light,
+                    lights,
                     reflections,
                     None,
                 ),
@@ -257,7 +269,7 @@ impl Raytracer {
                                         y as f32 + offset + sub_step * sub_y as f32,
                                     ),
                                     scene,
-                                    light,
+                                    lights,
                                     reflections,
                                     None,
                                 );
