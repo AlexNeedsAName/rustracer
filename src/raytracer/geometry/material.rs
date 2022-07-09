@@ -1,6 +1,4 @@
-use image::Color;
-
-// use image::Image;
+use crate::image::Color;
 
 #[derive(Clone, Copy)]
 pub struct Material {

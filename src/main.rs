@@ -1,5 +1,3 @@
-extern crate image;
-extern crate matrix;
 extern crate num_cpus;
 
 use std::rc::Rc;
@@ -9,10 +7,12 @@ use matrix::vector::{Point3D, Vector3D};
 
 use raytracer::geometry::material::Material;
 use raytracer::geometry::{Geometry, Sphere, Triangle};
-use raytracer::Antialiasing::{Grid, Off};
+use raytracer::Antialiasing::*;
 use raytracer::{Camera, Raytracer};
 
 mod raytracer;
+mod matrix;
+mod image;
 
 // Some cooridante ground rules:
 // x is east/west, y is up/down, z is north/south
@@ -71,7 +71,7 @@ fn main() {
         0.1,
         None,
     ));
-    let green = Rc::new(Material::new(
+    let _green = Rc::new(Material::new(
         Color::new(0, 255, 0, 128),
         0.5,
         0.0,

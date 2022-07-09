@@ -1,15 +1,13 @@
-extern crate image;
-extern crate matrix;
 // extern crate num_cpus;
 // extern crate rayon;
 
 use std::rc::Rc;
-use std::thread;
+// use std::thread;
 
-use image::Color;
-use image::Image;
-use matrix::vector::Point3D;
-use matrix::vector::Vector3D;
+use crate::image::Color;
+use crate::image::Image;
+use crate::matrix::vector::Point3D;
+use crate::matrix::vector::Vector3D;
 
 use geometry::Geometry;
 use geometry::Ray;
@@ -22,6 +20,7 @@ pub mod geometry;
 
 const AMBIENT: f32 = 0.2;
 
+#[allow(dead_code)]
 pub enum Antialiasing {
     Off,
     Grid(u32),
@@ -220,11 +219,11 @@ impl Raytracer {
         lights: &Vec<Point3D>,
         reflections: u32,
     ) {
-        let num_threads = num_cpus::get();
-        let thread_pool = rayon::ThreadPoolBuilder::new()
-            .num_threads(num_threads)
-            .build()
-            .unwrap();
+        // let num_threads = num_cpus::get();
+        // let thread_pool = rayon::ThreadPoolBuilder::new()
+        //     .num_threads(num_threads)
+        //     .build()
+        //     .unwrap();
 
         // for (x,y) in (0..self.img.get_width()).flat_map(move |a| (0..self.img.get_height()).map(move |b| (a, b))) {
         //     self.render_pixel(x, y, scene, light, reflections);

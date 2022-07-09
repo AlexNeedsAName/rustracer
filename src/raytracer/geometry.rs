@@ -1,11 +1,8 @@
-extern crate image;
-extern crate matrix;
-
 use std::fmt;
 use std::rc::Rc;
 
-use matrix::vector::Point3D;
-use matrix::vector::Vector3D;
+use crate::matrix::vector::Point3D;
+use crate::matrix::vector::Vector3D;
 
 use material::Material;
 
