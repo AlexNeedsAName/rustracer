@@ -9,12 +9,13 @@ use raytracer::geometry::material::Material;
 use raytracer::geometry::{Geometry, Sphere, Triangle};
 use raytracer::Antialiasing::*;
 use raytracer::{Camera, Raytracer};
+use crate::raytracer::geometry::{Light, Lights};
 
-mod raytracer;
-mod matrix;
 mod image;
+mod matrix;
+mod raytracer;
 
-// Some cooridante ground rules:
+// Some coordinate ground rules:
 // x is east/west, y is up/down, z is north/south
 
 fn main() {
@@ -151,12 +152,25 @@ fn main() {
         material: Rc::clone(&void),
     }));
 
-    let key_light = Point3D::new([3.0, 5.0, 15.0]);
-    let tmp1 = key_light - focus;
+    let light_color = Color::new(255,255,255,255);
+    let key_light = Light {
+        source: Point3D::new([3.0, 5.0, 15.0]),
+        color: light_color,
+        intensity: 5.0,
+    };
+    let tmp1 = key_light.source - focus;
     let tmp2 = Point3D::new([-tmp1.x(), tmp1.y(), tmp1.z()]);
-    let fill_light = tmp2 + focus;
+    let fill_light = Light {
+        source: tmp2 + focus,
+        color: light_color,
+        intensity: 1.0,
+    };
     let tmp3 = Point3D::new([-tmp1.x(), tmp1.y(), -tmp1.z()]);
-    let back_light = tmp3 + focus;
+    let back_light = Light {
+        source: tmp3 + focus,
+        color: light_color,
+        intensity: 1.0,
+    };
 
     // println!("Back light: {}", back_light);
 
@@ -177,10 +191,13 @@ fn main() {
     //     material: Rc::clone(&green),
     // }));
 
-    let mut lights: Vec<Point3D> = Vec::new();
-    lights.push(key_light);
-    lights.push(fill_light);
-    lights.push(back_light);
+    let mut light_sources: Vec<Light> = Vec::new();
+    light_sources.push(key_light);
+    light_sources.push(fill_light);
+    light_sources.push(back_light);
+
+    let lights = Lights::new(light_sources);
+
 
     // let mut raytracer = Raytracer::new(&camera, image, Off);
     let mut raytracer = Raytracer::new(&camera, image, Grid(8));

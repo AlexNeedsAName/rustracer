@@ -1,6 +1,6 @@
 use std::fs::File;
 use std::io::BufWriter;
-use std::ops::{Mul, Add};
+use std::ops::{Add, Mul};
 use std::path::Path;
 
 #[derive(Clone, Copy, Debug)]
@@ -22,25 +22,30 @@ impl Color {
         };
     }
     pub fn to_hex(&self) -> String {
-        return format!("#{:02x}{:02x}{:02x}", (self.r * 255.0) as u8, (self.g * 255.0) as u8, (self.b * 255.0) as u8);
+        return format!(
+            "#{:02x}{:02x}{:02x}",
+            (self.r * 255.0) as u8,
+            (self.g * 255.0) as u8,
+            (self.b * 255.0) as u8
+        );
     }
 
     pub fn overlay(&self, other: Color) -> Color {
         return Color {
-            r: self.r * self.a + other.r * (1.0-self.a),
-            g: self.g * self.a + other.g * (1.0-self.a),
-            b: self.b * self.a + other.b * (1.0-self.a),
-            a: other.a
-        }
+            r: self.r * self.a + other.r * (1.0 - self.a),
+            g: self.g * self.a + other.g * (1.0 - self.a),
+            b: self.b * self.a + other.b * (1.0 - self.a),
+            a: other.a,
+        };
     }
 
     pub fn average(&self, other: Color, alpha: f32) -> Color {
         return Color {
             r: self.r * alpha + other.r * (1.0 - alpha),
-            g: self.g * alpha + other.g * (1.0-alpha),
-            b: self.b * alpha + other.b * (1.0-alpha),
-            a: self.a * alpha + other.a * (1.0-alpha),
-        }
+            g: self.g * alpha + other.g * (1.0 - alpha),
+            b: self.b * alpha + other.b * (1.0 - alpha),
+            a: self.a * alpha + other.a * (1.0 - alpha),
+        };
     }
 }
 
@@ -52,6 +57,19 @@ impl Mul<f32> for Color {
             r: self.r * rhs,
             g: self.g * rhs,
             b: self.b * rhs,
+            a: self.a,
+        };
+    }
+}
+
+impl Mul<Color> for Color {
+    type Output = Color;
+
+    fn mul(self, rhs: Color) -> Color {
+        return Color {
+            r: self.r * rhs.r,
+            g: self.g * rhs.g,
+            b: self.b * rhs.b,
             a: self.a,
         };
     }
@@ -147,7 +165,7 @@ mod tests {
     fn test_str() {
         let c = Color::new(102, 153, 255, 255);
         assert_eq!(c.to_hex(), "#6699ff");
-        let c = Color::new(0,0,0,0);
+        let c = Color::new(0, 0, 0, 0);
         assert_eq!(c.to_hex(), "#000000");
     }
 

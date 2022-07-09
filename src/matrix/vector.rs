@@ -1,7 +1,7 @@
 extern crate num_traits;
 use num_traits::Float;
 use std::fmt;
-use std::ops::{Add, Sub, Mul, Div, Neg};
+use std::ops::{Add, Div, Mul, Neg, Sub};
 
 pub type Vector3D = Vector<f32, 3>;
 // pub type Vector2D = Vector<f32, 2>;
@@ -14,28 +14,26 @@ pub struct Vector<T: Float, const DIM: usize> {
 }
 
 impl Vector<f32, 3> {
-
     #[inline]
     pub fn x(&self) -> f32 {
-        return self.data[0]
+        return self.data[0];
     }
 
     #[inline]
     pub fn y(&self) -> f32 {
-        return self.data[1]
+        return self.data[1];
     }
 
     #[inline]
     pub fn z(&self) -> f32 {
-        return self.data[2]
+        return self.data[2];
     }
-
 }
 
 #[allow(dead_code)]
 impl<T: Float, const DIM: usize> Vector<T, DIM> {
     pub fn new(data: [T; DIM]) -> Vector<T, DIM> {
-//        return Vector::<T, DIM> { data: data };
+        //        return Vector::<T, DIM> { data: data };
         return Self { data: data };
     }
 
@@ -171,7 +169,6 @@ impl<T: Float, const DIM: usize> Mul<T> for Vector<T, DIM> {
     }
 }
 
-
 // Scalar Division
 impl<T: Float, const DIM: usize> Div<T> for Vector<T, DIM> {
     type Output = Self;
@@ -180,7 +177,6 @@ impl<T: Float, const DIM: usize> Div<T> for Vector<T, DIM> {
         return self.scale(T::one() / other);
     }
 }
-
 
 impl<T: Float + fmt::Display> fmt::Display for Vector<T, 3> {
     fn fmt(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
@@ -228,7 +224,7 @@ mod test {
     fn add() {
         let vec1 = Vector3D::new([1.0, 2.0, 3.0]);
         let vec2 = Vector3D::new([4.0, 5.0, 6.0]);
-        let result =  Vector3D::new([5.0, 7.0, 9.0]);
+        let result = Vector3D::new([5.0, 7.0, 9.0]);
         assert_eq!(vec1.add(vec2), result);
         assert_eq!(vec1 + vec2, result);
     }

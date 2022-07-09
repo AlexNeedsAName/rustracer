@@ -4,12 +4,37 @@ use std::rc::Rc;
 use crate::matrix::vector::Point3D;
 use crate::matrix::vector::Vector3D;
 
+use crate::Color;
 use material::Material;
 
 pub mod material;
 
-// Some cooridante ground rules:
+// Some coordinate ground rules:
 // x is east/west, y is up/down, z is north/south
+
+pub struct Lights {
+    pub sources: Vec<Light>,
+    pub total_intensity: f32,
+}
+
+impl Lights {
+    pub fn new(sources: Vec<Light>) -> Lights {
+        let mut intensity = 0.0;
+        for light in &sources {
+            intensity += light.intensity;
+        }
+        return Lights {
+            sources,
+            total_intensity: intensity,
+        };
+    }
+}
+
+pub struct Light {
+    pub source: Point3D,
+    pub color: Color,
+    pub intensity: f32,
+}
 
 pub struct Rayhit {
     pub dist: f32,

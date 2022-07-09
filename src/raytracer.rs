@@ -12,6 +12,7 @@ use crate::matrix::vector::Vector3D;
 use geometry::Geometry;
 use geometry::Ray;
 use geometry::Rayhit;
+use crate::raytracer::geometry::Lights;
 
 pub mod geometry;
 
@@ -78,13 +79,14 @@ impl Raytracer {
         ray: &Ray,
         hit: &Rayhit,
         scene: &Vec<Rc<dyn Geometry>>,
-        lights: &Vec<Point3D>,
+        lights: &Lights,
         reflections: u32,
     ) -> Color {
         let mut color = Color::new(0, 0, 0, 0);
+
         let reflect = ray.direction - hit.normal * (ray.direction * hit.normal) * 2.0;
-        for light_source in lights {
-            let to_light = light_source.clone() - hit.pos;
+        for light_source in &lights.sources {
+            let to_light = light_source.source.clone() - hit.pos;
             let dist_to_light = to_light.norm();
             let to_light = to_light * (1.0 / dist_to_light);
             let ray_to_light = Ray {
@@ -95,8 +97,6 @@ impl Raytracer {
             let half_angle = (to_light - ray.direction).normalized();
 
             let mut light_amount = 1.0;
-            let light_color = Color::new(255, 255, 255, 255); //TODO: Light color per light
-
             // How much of the light reaches the hit position?
             if hit.dist.is_finite() {
                 for object in scene.iter() {
@@ -123,16 +123,18 @@ impl Raytracer {
                 continue;
             }
 
+            let mixed_color = light_source.color * hit.material.color;
+
             // TODO: Make this section look less gross
-            let light_ambient = hit.material.color * AMBIENT; //TODO: Make a parameter for the raytracer.
-            let light_diffuse = hit.material.color
+            let light_ambient = mixed_color * AMBIENT; //TODO: Make a parameter for the raytracer.
+            let light_diffuse = mixed_color
                 * (clamp(hit.normal * to_light) * light_amount * hit.material.diffuse);
-            let light_specular = light_color
+            let light_specular = light_source.color
                 * (f32::powi(clamp(hit.normal * half_angle), hit.material.specular_n)
                     * light_amount
                     * hit.material.specular);
 
-            color = color + light_ambient + light_diffuse + light_specular
+            color = color + ((light_ambient + light_diffuse + light_specular) * light_source.intensity)
         }
 
         assert_ne!(reflections, 0);
@@ -165,14 +167,15 @@ impl Raytracer {
             Color::new(0, 0, 0, 0)
         } * (1.0 - hit.material.color.a);
         // color = color.overlay(passthrough_color);
+        // println!("light intensity: {}", total_intensity);
 
-        return color * (1.0 / lights.len() as f32) + light_reflected + light_transparent;
+        return color * (1.0 / lights.total_intensity) + light_reflected + light_transparent;
     }
 
     pub fn trace(
         ray: &Ray,
         scene: &Vec<Rc<dyn Geometry>>,
-        lights: &Vec<Point3D>,
+        lights: &Lights,
         reflections: u32,
         ignore: Option<Rc<dyn Geometry>>,
     ) -> Color {
@@ -216,7 +219,7 @@ impl Raytracer {
     pub fn render(
         &mut self,
         scene: &Vec<Rc<dyn Geometry>>,
-        lights: &Vec<Point3D>,
+        lights: &Lights,
         reflections: u32,
     ) {
         // let num_threads = num_cpus::get();
@@ -241,7 +244,7 @@ impl Raytracer {
         x: u32,
         y: u32,
         scene: &Vec<Rc<dyn Geometry>>,
-        lights: &Vec<Point3D>,
+        lights: &Lights,
         reflections: u32,
     ) {
         self.img.set_pixelu32(
