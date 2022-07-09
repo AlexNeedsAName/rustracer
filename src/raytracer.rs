@@ -9,10 +9,10 @@ use crate::image::Image;
 use crate::matrix::vector::Point3D;
 use crate::matrix::vector::Vector3D;
 
+use crate::raytracer::geometry::Lights;
 use geometry::Geometry;
 use geometry::Ray;
 use geometry::Rayhit;
-use crate::raytracer::geometry::Lights;
 
 pub mod geometry;
 
@@ -22,6 +22,7 @@ pub mod geometry;
 const AMBIENT: f32 = 0.2;
 
 #[allow(dead_code)]
+#[derive(Copy, Clone)]
 pub enum Antialiasing {
     Off,
     Grid(u32),
@@ -127,14 +128,15 @@ impl Raytracer {
 
             // TODO: Make this section look less gross
             let light_ambient = mixed_color * AMBIENT; //TODO: Make a parameter for the raytracer.
-            let light_diffuse = mixed_color
-                * (clamp(hit.normal * to_light) * light_amount * hit.material.diffuse);
+            let light_diffuse =
+                mixed_color * (clamp(hit.normal * to_light) * light_amount * hit.material.diffuse);
             let light_specular = light_source.color
                 * (f32::powi(clamp(hit.normal * half_angle), hit.material.specular_n)
                     * light_amount
                     * hit.material.specular);
 
-            color = color + ((light_ambient + light_diffuse + light_specular) * light_source.intensity)
+            color =
+                color + ((light_ambient + light_diffuse + light_specular) * light_source.intensity)
         }
 
         assert_ne!(reflections, 0);
@@ -216,12 +218,7 @@ impl Raytracer {
         };
     }
 
-    pub fn render(
-        &mut self,
-        scene: &Vec<Rc<dyn Geometry>>,
-        lights: &Lights,
-        reflections: u32,
-    ) {
+    pub fn render(&mut self, scene: &Vec<Rc<dyn Geometry>>, lights: &Lights, reflections: u32) {
         // let num_threads = num_cpus::get();
         // let thread_pool = rayon::ThreadPoolBuilder::new()
         //     .num_threads(num_threads)
@@ -282,6 +279,51 @@ impl Raytracer {
                 }
             },
         );
+    }
+
+    pub fn save(&self, str: &String) {
+        self.img.save(str);
+    }
+}
+
+pub struct Anaglyph {
+    left: Raytracer,
+    right: Raytracer,
+    img: Image,
+}
+
+impl Anaglyph {
+    pub fn new(cam: &Camera, img: Image, aa: Antialiasing, ipd: f32) -> Anaglyph {
+        let right_vector = cam.look.cross(&cam.up).scale(-1.0).normalized();
+        let left_eye = Camera {
+            position: cam.position - (right_vector * (ipd / 2.0)),
+            look: cam.look,
+            up: cam.up,
+            fov: cam.fov,
+        };
+        let right_eye = Camera {
+            position: cam.position + (right_vector * (ipd / 2.0)),
+            look: cam.look,
+            up: cam.up,
+            fov: cam.fov,
+        };
+        let left = Raytracer::new(&left_eye, Image::new_like(&img), aa);
+        let right = Raytracer::new(&right_eye, Image::new_like(&img), aa);
+        return Anaglyph { left, right, img };
+    }
+
+    pub fn render(&mut self, scene: &Vec<Rc<dyn Geometry>>, lights: &Lights, reflections: u32) {
+        self.left.render(scene, lights, reflections);
+        self.right.render(scene, lights, reflections);
+        let left_filter = Color::new(0, 255, 255, 255);
+        let right_filter = Color::new(255, 0, 0, 255);
+        for y in 0..self.img.get_height() {
+            for x in 0..self.img.get_width() {
+                let color = self.left.img.get_pixelu32(x, y).to_gray() * left_filter
+                    + self.right.img.get_pixelu32(x, y).to_gray() * right_filter;
+                self.img.set_pixelu32(x, y, color);
+            }
+        }
     }
 
     pub fn save(&self, str: &String) {

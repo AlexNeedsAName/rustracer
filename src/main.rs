@@ -5,11 +5,12 @@ use std::rc::Rc;
 use image::{Color, Image};
 use matrix::vector::{Point3D, Vector3D};
 
+use crate::raytracer::geometry::{Light, Lights};
+use crate::raytracer::Anaglyph;
 use raytracer::geometry::material::Material;
 use raytracer::geometry::{Geometry, Sphere, Triangle};
 use raytracer::Antialiasing::*;
 use raytracer::{Camera, Raytracer};
-use crate::raytracer::geometry::{Light, Lights};
 
 mod image;
 mod matrix;
@@ -21,15 +22,21 @@ mod raytracer;
 fn main() {
     println!("Num Threads: {}", num_cpus::get());
 
-    // let image = Image::new(2560, 1080);
+    let image = Image::new(2560, 1080);
     // let image = Image::new(7680, 7680);
-    let image = Image::new(512, 512);
+    // let image = Image::new(512, 512);
 
+    // let camera = Camera {
+    //     position: Vector3D::new([0.0, 0.0, 0.0]),
+    //     look: Vector3D::new([0.0, 0.0, 2.0]),
+    //     up: Vector3D::new([0.0, 1.0, 0.0]),
+    //     fov: 53.13010235,
+    // };
     let camera = Camera {
-        position: Vector3D::new([0.0, 0.0, 0.0]),
+        position: Vector3D::new([0.0, 0.0, 2.0]),
         look: Vector3D::new([0.0, 0.0, 2.0]),
         up: Vector3D::new([0.0, 1.0, 0.0]),
-        fov: 53.13010235,
+        fov: 90.0,
     };
 
     let mirror = Rc::new(Material::new(
@@ -152,7 +159,7 @@ fn main() {
         material: Rc::clone(&void),
     }));
 
-    let light_color = Color::new(255,255,255,255);
+    let light_color = Color::new(255, 255, 255, 255);
     let key_light = Light {
         source: Point3D::new([3.0, 5.0, 15.0]),
         color: light_color,
@@ -198,9 +205,9 @@ fn main() {
 
     let lights = Lights::new(light_sources);
 
-
     // let mut raytracer = Raytracer::new(&camera, image, Off);
-    let mut raytracer = Raytracer::new(&camera, image, Grid(8));
+    // let mut raytracer = Raytracer::new(&camera, image, Grid(8));
+    let mut raytracer = Anaglyph::new(&camera, image, Grid(8), 0.065);
     raytracer.render(&scene, &lights, 20);
     raytracer.save(&"output/output.png".to_owned());
 }

@@ -47,6 +47,16 @@ impl Color {
             a: self.a * alpha + other.a * (1.0 - alpha),
         };
     }
+
+    pub fn to_gray(&self) -> Color {
+        let avg = (self.r + self.g + self.b) / 3.0;
+        return Color {
+            r: avg,
+            g: avg,
+            b: avg,
+            a: self.a,
+        };
+    }
 }
 
 impl Mul<f32> for Color {
@@ -105,12 +115,20 @@ impl Image {
         };
     }
 
+    pub fn new_like(image: &Image) -> Image {
+        return Image::new(image.width, image.height);
+    }
+
     pub fn get_width(&self) -> u32 {
         return u32::try_from(self.width).unwrap();
     }
 
     pub fn get_height(&self) -> u32 {
         return u32::try_from(self.height).unwrap();
+    }
+
+    pub fn get_pixelu32(&self, x: u32, y: u32) -> Color {
+        return self.get_pixel(usize::try_from(x).unwrap(), usize::try_from(y).unwrap());
     }
 
     pub fn get_pixel(&self, x: usize, y: usize) -> Color {
