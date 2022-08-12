@@ -142,8 +142,7 @@ impl Raytracer {
 
         assert_ne!(reflections, 0);
         let light_reflected = if reflections > 0 && hit.material.reflectivity > 0.0 {
-            let (reflected_color, reflected_rays) =
-            Raytracer::trace(
+            let (reflected_color, reflected_rays) = Raytracer::trace(
                 &Ray {
                     direction: reflect,
                     origin: hit.pos,
@@ -159,8 +158,7 @@ impl Raytracer {
             hit.material.color
         } * hit.material.reflectivity;
         let light_transparent = if hit.material.color.a < 1.0 {
-            let (passthrough_color, passthrough_rays) =
-            Raytracer::trace(
+            let (passthrough_color, passthrough_rays) = Raytracer::trace(
                 &Ray {
                     direction: ray.direction,
                     origin: hit.pos,
@@ -178,7 +176,10 @@ impl Raytracer {
         // color = color.overlay(passthrough_color);
         // println!("light intensity: {}", total_intensity);
 
-        return (color * (1.0 / lights.total_intensity) + light_reflected + light_transparent, ray_count);
+        return (
+            color * (1.0 / lights.total_intensity) + light_reflected + light_transparent,
+            ray_count,
+        );
     }
 
     pub fn trace(
@@ -212,7 +213,7 @@ impl Raytracer {
 
         return match closest_hit {
             Some(hit) => Raytracer::shade(ray, &hit, scene, lights, reflections),
-            None => (Color::new(0, 0, 0, 0), 1)
+            None => (Color::new(0, 0, 0, 0), 1),
         };
     }
 
@@ -249,7 +250,10 @@ impl Raytracer {
         }
 
         let elapsed = now.elapsed();
-        println!("Render took {:.2?} and traced {:?} rays", elapsed, ray_count);
+        println!(
+            "Render took {:.2?} and traced {:?} rays",
+            elapsed, ray_count
+        );
     }
 
     pub fn render_pixel(
